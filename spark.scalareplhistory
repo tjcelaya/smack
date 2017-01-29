@@ -1,0 +1,42 @@
+scala> val threeDF = Seq((1),(2),(3)).toDF()
+scala> threeDF.map(_.getInt(0)).agg(sum("value")).first.get(0)
+scala> spark.range(100).agg(sum("id")).toJSON("id")
+scala> spark.range(100).agg(sum("id")).toJSON("value")
+scala> spark.range(100).agg(sum("id")).getClass
+scala> spark.range(100).agg(sum("id")).getClass.toString
+scala> spark.range(100).agg(sum("id")).getClass.toString()
+
+scala> val comm0 = Seq((1,"Leonard","old"),(2,"Garrett","nervous"),(3,"Ben","crazy")).toDF("id","name","label")
+
+scala> comm0.schema
+scala> comm0.printSchema
+
+scala> comm0.persist
+scala> comm0.unpersist
+
+scala> comm0.toJSON.collect.foreach(println)
+
+scala> import org.apache.spark.sql.SQLContext
+scala> val sqlCxt = new SQLContext(sc)
+scala> val csvCcDf = sqlCxt.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").load("/tmp/cc.csv"); csvCcDf.count
+scala> csvCcDf.count
+scala> csvCcDf.show
+scala> csvCcDf.distinct("product")
+scala> csvCcDf.select("product").distinct
+scala> csvCcDf.select("product").distinct.show
+scala> csvCcDf.select("Product").distinct.show
+scala> csvCcDf.select("Product").distinct.sort.show
+scala> csvCcDf.select("Product").distinct.sort.show
+scala> csvCcDf.select("Product").distinct.sort("Product").show
+scala> csvCcDf.printSchema
+scala> csvCcDf.select("Company").distinct.sort("Company").show
+scala> csvCcDf.select("Company").where("Company like \"Citi%\"").show
+scala> csvCcDf.select("Company").where("Company not like ' '").distinct.show
+scala> def time[R](block: => R): R = {
+scala> time csvCcDf.select("Company").where("Company not like '% %'").distinct.show
+scala> time(csvCcDf.select("Company").where("Company not like '% %'").distinct.show)
+scala> def time[R](block: => R): R = {
+scala> time(csvCcDf.select("Date received").limit(10).show)
+scala> time(csvCcDf.select("Date received").distinct.limit(10).show)
+scala> StructField()
+scala> import org.apache.spark.sql.types.{StructType, StructField, StringType, IntegerType}

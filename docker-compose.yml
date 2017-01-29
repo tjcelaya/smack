@@ -1,0 +1,30 @@
+version: "3"
+services:
+  cassandra:
+    image: cassandra:3.9
+  cqlsh:
+    image: cassandra:3.9
+    # relies on links creating entries in /etc/hosts
+    command: cqlsh cassandra
+    tty: true
+    links:
+      - cassandra
+  redis:
+    image: redis:3-alpine
+    ports:
+      - 6379:6379
+  spark:
+    image: gettyimages/spark:latest
+    command: bin/spark-shell
+    ports:
+      - 4040
+    volumes:
+      - /tmp
+  sbt:
+    image: 1science/sbt:latest
+    command: sbt
+    volumes:
+      - $PWD/stream:/app
+      - $HOME/.ivy2:/root/.ivy2
+#  scala:
+#    build:
