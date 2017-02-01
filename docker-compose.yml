@@ -22,7 +22,7 @@ services:
       - /tmp
   sbt:
     image: 1science/sbt:latest
-    command: sbt
+    command: sbt ~console
     volumes:
       - $PWD/stream:/app
       - $HOME/.ivy2:/root/.ivy2

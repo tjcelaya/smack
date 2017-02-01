@@ -1,4 +1,4 @@
-package co.tjcelaya.stream
+package co.tjcelaya.smack.stream
 
 import org.scalatest._
 
