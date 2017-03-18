@@ -1,4 +1,5 @@
-.idea
+infra/data/
+.idea/
 .DS_Store
 target/
 stream/target/
@@ -6,3 +7,5 @@ web/target/
 classes/
 *.class
 *.log
+*.out
+*.UNUSED
