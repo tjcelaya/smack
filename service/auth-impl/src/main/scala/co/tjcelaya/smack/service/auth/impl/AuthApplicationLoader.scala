@@ -3,12 +3,14 @@ package co.tjcelaya.smack.service.auth.impl
 import com.lightbend.lagom.scaladsl.api.ServiceLocator
 import com.lightbend.lagom.scaladsl.api.ServiceLocator.NoServiceLocator
 import com.lightbend.lagom.scaladsl.persistence.cassandra.CassandraPersistenceComponents
+import com.lightbend.lagom.scaladsl.persistence.jdbc.{JdbcPersistenceComponents, JdbcSession}
 import com.lightbend.lagom.scaladsl.server._
 import com.lightbend.lagom.scaladsl.devmode.LagomDevModeComponents
 import play.api.libs.ws.ahc.AhcWSComponents
 import co.tjcelaya.smack.service.auth.api.AuthService
 import com.softwaremill.macwire._
-import play.api.LoggerConfigurator
+import play.api.{Environment, LoggerConfigurator}
+import play.api.db.HikariCPComponents
 import scredis._
 
 class AuthApplicationLoader extends LagomApplicationLoader {
@@ -34,20 +36,23 @@ class AuthApplicationLoader extends LagomApplicationLoader {
 abstract class AuthApplication(context: LagomApplicationContext)
   extends LagomApplication(context)
     with AhcWSComponents
-    with HikariCPComponents
-    with JdbcPersistenceComponents {
+    with JdbcPersistenceComponents
+    with HikariCPComponents {
 
   // private lazy val redisClient = new Client()(this.actorSystem)
+
+  private val env: Environment = context.playContext.environment
 
   // (this.actorSystem)
   // lazy val accessTokenRepository = new AccessTokenRepository(redisClient)
 
+  protected lazy val userRepository: UserRepository = wire[MySQLUserRepository]
   protected lazy val accessTokenRepository: AccessTokenRepository = wire[MySQLAccessTokenRepository]
-  protected lazy val clientRepository: ClientRepository = wire[ClientRepository]
-  protected lazy val userOAuth2Provider: UserOAuth2Provider = wire[UserOAuth2Provider]
+  protected lazy val clientRepository: ClientRepository = wire[MySQLClientRepository]
+  protected lazy val oauth2Provider: OAuth2Provider = wire[OAuth2Provider]
 
   // Bind the services that this server provides
-  override lazy val lagomServer = LagomServer.forServices(
+  override lazy val lagomServer: LagomServer = LagomServer.forServices(
     bindService[AuthService].to(wire[AuthServiceImpl])
   )
 

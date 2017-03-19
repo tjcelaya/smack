@@ -121,10 +121,12 @@ lazy val `auth-impl` = (project in file("auth-impl"))
   .settings(
     libraryDependencies ++= (serviceImplDefaultDeps ++ Seq(
       "com.livestream" %% "scredis" % "2.0.6",
-      "com.typesafe.slick" %% "slick" % slickVersion,
-      "com.typesafe.slick" %% "slick-hikaricp" % slickVersion,
       "mysql" % "mysql-connector-java" % "6.0.5",
-      "com.typesafe.slick" %% "slick-testkit" % slickVersion % "test"
+      lagomScaladslPersistenceJdbc,
+      "com.lambdaworks" % "scrypt" % "1.4.0"
+      //, "com.typesafe.slick" %% "slick" % slickVersion
+      //, "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
+      //, "com.typesafe.slick" %% "slick-testkit" % slickVersion % "test"
       //, "com.typesafe.slick" %% "slick-codegen" % slickVersion
     ))
     //, authSlick <<= authSlickCodeGenTask // register manual sbt command

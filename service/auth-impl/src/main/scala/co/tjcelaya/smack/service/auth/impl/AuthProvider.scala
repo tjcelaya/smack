@@ -1,11 +1,8 @@
 package co.tjcelaya.smack.service.auth.impl
 
-import java.util.UUID
-
 import co.tjcelaya.smack.service.common.DateFactory
 import com.lightbend.lagom.scaladsl.api.transport.{ExceptionMessage, TransportErrorCode, TransportException}
 import com.typesafe.scalalogging.slf4j.LazyLogging
-import play.api.libs.json._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalaoauth2.provider._
@@ -14,50 +11,23 @@ import scalaoauth2.provider._
   * Created by tj on 3/2/17.
   */
 
-sealed trait Authenticatable {
+object AuthType extends Enumeration {
+  type AuthType = Value
+  val user, client = Value
+}
+
+
+trait Authenticatable {
   def authId: String
 
-  def authType: String
+  def authType: AuthType.AuthType
 }
 
-object UserId {
-  implicit def fromUUID(uuid: UUID): UserId = new UserId(uuid)
-}
-
-final class UserId(val u: UUID) extends AnyVal
-
-case class User(id: UserId, name: String, hashedPassword: String)
-  extends Authenticatable {
-  override def authId: String = id.toString
-
-  override def authType: String = "user"
-}
-
-object User {
-  implicit val idFormat: Format[UserId] = Format(
-    Reads.of[UUID].map(new UserId(_)),
-    Writes { (uid: UserId) => JsString(uid.u.toString) })
-  implicit val format: Format[User] = Json.format[User]
-}
-
-object OAuth2ProviderResolver {
-  type K = Class[_]
-  type V = DataHandler[_]
-  private var providers = Map[K, V]()
-
-  def registerProvider(authenticatable: K, handler: V):
-  Unit = {
-    providers = providers.updated(authenticatable, handler)
-  }
-
-  def lookup(authenticatable: K): V = {
-    providers(authenticatable)
-  }
-}
-
-class UserOAuth2Provider(accessTokenRepository: AccessTokenRepository, clientRepository: ClientRepository)
-                        (implicit ec: ExecutionContext)
-  extends DataHandler[User]
+class OAuth2Provider(accessTokenRepository: AccessTokenRepository,
+                     clientRepository: ClientRepository,
+                     userRepository: UserRepository)
+                    (implicit ec: ExecutionContext)
+  extends DataHandler[Authenticatable]
     with LazyLogging {
 
   def provides: Class[_] = User.getClass
@@ -66,22 +36,16 @@ class UserOAuth2Provider(accessTokenRepository: AccessTokenRepository, clientRep
                      request: AuthorizationRequest): Future[Boolean] = {
     request.parseClientCredential match {
       case None => Future.successful(false)
-      case Some(maybeValid) =>
-        logger.error("some credsz?")
-        maybeValid match {
-          case Left(invalidClientException) =>
-            logger.error(s"invalid client: $invalidClientException")
-            throw invalidClientException
-          case Right(clientCredential) =>
-            clientRepository.exists(clientCredential.clientId)
-        }
+      case Some(Left(invalidClientException)) =>
+        logger.error(s"invalid client: $invalidClientException")
+        throw invalidClientException
+      case Some(Right(clientCredential)) =>
+        clientRepository.exists(new ClientId(clientCredential.clientId), clientCredential.clientSecret)
     }
   }
 
-  "words".toCharArray
-
   def findUser(maybeClientCredential: Option[ClientCredential],
-               request: AuthorizationRequest): Future[Option[User]] = {
+               request: AuthorizationRequest): Future[Option[Authenticatable]] = {
 
     maybeClientCredential match {
       case None =>
@@ -90,14 +54,17 @@ class UserOAuth2Provider(accessTokenRepository: AccessTokenRepository, clientRep
             TransportErrorCode.BadRequest,
             new ExceptionMessage("client_id, client_secret", "client credentials invalid")))
       case Some(ClientCredential(clientId, maybeClientSecret)) =>
-        // TODO: do something with request?
-        Future.successful(Some(User(UUID.randomUUID(), "bob", "[redacted]")))
+        clientRepository.findWithSecret(new ClientId(clientId), maybeClientSecret)
     }
   }
 
-  def createAccessToken(authInfo: AuthInfo[User]): Future[AccessToken] = {
+  def createAccessToken(authInfo: AuthInfo[Authenticatable]): Future[AccessToken] = {
     val accessTokenValue =
-      s"user_token:${authInfo.user.id} ${authInfo.clientId.getOrElse("client_id_missing:")}"
+      s"user_token:${
+        authInfo.user.authId
+      } ${
+        authInfo.clientId.getOrElse("client_id_missing:")
+      }"
 
     def nestedProductToFlatMap(p: Product): Map[String, String] = {
       p.getClass
@@ -117,19 +84,19 @@ class UserOAuth2Provider(accessTokenRepository: AccessTokenRepository, clientRep
     accessTokenRepository.persist(token, authInfo)
   }
 
-  def refreshAccessToken(authInfo: AuthInfo[User], refreshToken: String): Future[AccessToken] = ???
+  def refreshAccessToken(authInfo: AuthInfo[Authenticatable], refreshToken: String): Future[AccessToken] = ???
 
-  def getStoredAccessToken(authInfo: AuthInfo[User]): Future[Option[AccessToken]] =
-    accessTokenRepository.findByUserId(authInfo.user.id.u)
+  def getStoredAccessToken(authInfo: AuthInfo[Authenticatable]): Future[Option[AccessToken]] =
+    accessTokenRepository.findByAuthenticatable(authInfo.user)
 
   def findAccessToken(token: String): Future[Option[AccessToken]] =
     accessTokenRepository.find(token)
 
-  def findAuthInfoByCode(code: String): Future[Option[AuthInfo[User]]] = ???
+  def findAuthInfoByCode(code: String): Future[Option[AuthInfo[Authenticatable]]] = ???
 
-  def findAuthInfoByRefreshToken(refreshToken: String): Future[Option[AuthInfo[User]]] = ???
+  def findAuthInfoByRefreshToken(refreshToken: String): Future[Option[AuthInfo[Authenticatable]]] = ???
 
-  def findAuthInfoByAccessToken(accessToken: AccessToken): Future[Option[AuthInfo[User]]] = ???
+  def findAuthInfoByAccessToken(accessToken: AccessToken): Future[Option[AuthInfo[Authenticatable]]] = ???
 
   def deleteAuthCode(code: String): Future[Unit] = ???
 }

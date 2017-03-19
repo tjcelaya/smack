@@ -1,77 +1,107 @@
 package co.tjcelaya.smack.service.auth.impl
 
-import java.util.UUID
-
 import co.tjcelaya.smack.service.auth.api._
+import com.lightbend.lagom.scaladsl.api.transport.TransportException
 import com.lightbend.lagom.scaladsl.server.LocalServiceLocator
 import com.lightbend.lagom.scaladsl.testkit.ServiceTest
-import org.scalatest.{AsyncWordSpec, BeforeAndAfterAll, Matchers}
+import org.scalatest._
 
 import scala.concurrent.Future
-import scalaoauth2.provider.{AccessToken, AuthInfo, OAuthGrantType}
+import scalaoauth2.provider.OAuthGrantType
 
-class AuthServiceSpec extends AsyncWordSpec with Matchers with BeforeAndAfterAll {
+class AuthServiceSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
-  private val server = ServiceTest.startServer(
-    ServiceTest.defaultSetup
-    // .withCassandra(true)
-  ) { ctx =>
-    new AuthApplication(ctx) with LocalServiceLocator {
-      override lazy val accessTokenRepository = new AccessTokenRepository {
-        var toks: List[AccessToken] = List()
+  trait ConfigurableServer {
+    def getAccessTokenRepository: AccessTokenRepository
 
-        override def find(token: String): Future[Option[AccessToken]] =
-          Future.successful(toks.find(_.token == token))
+    def getClientRepository: StubClientRepository
 
-        override def findByUserId(id: UUID): Future[Option[AccessToken]] = {
-          // find does -> toks.filter(_.params.get("user_id") == id.toString).headOption
-          Future.successful(toks.find(_.params.get("user.user_id") == id.toString))
-        }
+    def getUserRepository: StubUserRepository
+  }
 
-        override def persist(accessToken: AccessToken,
-                             authInfo: AuthInfo[_ <: Authenticatable]): Future[AccessToken] = {
-          toks = accessToken :: toks
-          Future.successful(accessToken)
-        }
+  def testWithServer(block: (ConfigurableServer, AuthService) => Future[Assertion]): Future[Assertion] = {
+    ServiceTest.withServer(
+      ServiceTest.defaultSetup // .withCassandra(true)
+    ) { ctx =>
+      new AuthApplication(ctx) with LocalServiceLocator with ConfigurableServer {
+        override lazy val accessTokenRepository = new StubAccessTokenRepository
+        override lazy val clientRepository = new StubClientRepository
+        override lazy val userRepository = new StubUserRepository
 
-        override def revoke(token: String): Future[Unit] = {
-          toks = toks.filter(_.token != token)
-          Future.successful(())
-        }
+        override lazy val oauth2Provider =
+          new OAuth2Provider(accessTokenRepository, clientRepository, userRepository)
+
+        override def getAccessTokenRepository = accessTokenRepository
+
+        override def getClientRepository = clientRepository
+
+        override def getUserRepository = userRepository
       }
-
-      override lazy val clientRepository = new ClientRepository {
-        override def exists(id: String): Future[Boolean] = {
-          Future.successful(id.matches("/^[A-z0-9]+$/"))
-        }
-      }
-
-      override lazy val userOAuth2Provider = new UserOAuth2Provider(accessTokenRepository, clientRepository)
+    } { server =>
+      block(server.application, server.serviceClient.implement[AuthService])
     }
   }
 
-  val client = server.serviceClient.implement[AuthService]
+  it should "remember tokens it has created and check the client secret" in {
+    testWithServer { (server: ConfigurableServer, client: AuthService) =>
+      server.getClientRepository.clients = List(Client(new ClientId("best_client1"), "", "best_secret1"))
 
-  override protected def afterAll() = server.stop()
+      client.token(OAuthGrantType.CLIENT_CREDENTIALS, "best_client1", Some("best_secret1"))
+        .invoke()
+        .flatMap {
+          response =>
+            response.access_token.length should be > 0
+            response.access_token should include regex "\\S+"
 
-  "Auth service" should {
+            client.checkToken.invoke(response.access_token).flatMap {
+              checkResponse =>
+                checkResponse shouldEqual true
+            }
+        }
+    }
+  }
 
-    "return " in {
-      client.token(OAuthGrantType.CLIENT_CREDENTIALS, "client_id", Some("client_secret"), None, None, None)
-        .invoke().map {
-        response =>
-          response.access_token.length should be > 0
+  it should "reject unknown clients" in {
+    testWithServer { (server: ConfigurableServer, client: AuthService) =>
+      recoverToSucceededIf[TransportException] {
+        client.token(OAuthGrantType.CLIENT_CREDENTIALS, "best_client").invoke()
       }
     }
+  }
 
-    "allow responding with a custom message" in {
-      //      for {
-      //        _ <- client.useGreeting("Bob").invoke(GreetingMessage("Hi"))
-      //        answer <- client.hello("Bob").invoke()
-      //      } yield {
-      //        answer should ===("Hi, Bob!")
-      //      }
-      assert(true)
+  it should "handle user auth" in {
+    testWithServer { (server: ConfigurableServer, client: AuthService) =>
+
+      val (cid, csecret) = server.getClientRepository.seed
+      val (uname, passwd) = server.getUserRepository.seed
+
+      client.token(OAuthGrantType.PASSWORD, cid, Some(csecret), Some(uname), Some(passwd))
+        .invoke()
+        .flatMap {
+          response =>
+            response.params("auth_type") shouldEqual "user"
+        }
+    }
+  }
+
+  it should "support extra params" in {
+    testWithServer { (server: ConfigurableServer, client: AuthService) =>
+      val (cid, csecret) = server.getClientRepository.seed
+      val (uname, passwd) = server.getUserRepository.seed
+
+      client.token(OAuthGrantType.PASSWORD, cid, Some(csecret), Some(uname), Some(passwd))
+        .invoke()
+        .flatMap {
+          response =>
+            response.params("auth_type") shouldEqual "user"
+        }
+
+      client.token(OAuthGrantType.CLIENT_CREDENTIALS, cid, Some(csecret))
+        .invoke()
+        .flatMap {
+          response =>
+            response.params("auth_type") shouldEqual "client"
+        }
     }
   }
 }

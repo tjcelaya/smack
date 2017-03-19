@@ -16,10 +16,10 @@ trait AuthService extends Service {
 
   def token(grant_type: String,
             client_id: String,
-            client_secret: Option[String],
-            username: Option[String],
-            password: Option[String],
-            refresh_token: Option[String]): ServiceCall[NotUsed, OAuth2AccessToken]
+            client_secret: Option[String] = None,
+            username: Option[String] = None,
+            password: Option[String] = None,
+            refresh_token: Option[String] = None): ServiceCall[NotUsed, OAuth2AccessToken]
 
   def jwt(grant_type: String,
           client_id: String,
@@ -27,6 +27,11 @@ trait AuthService extends Service {
           username: Option[String],
           password: Option[String],
           refresh_token: Option[String]): ServiceCall[NotUsed, String]
+
+  def checkToken: ServiceCall[String, Boolean]
+
+  // you shouldn't need to check a jwt, it's signed!
+  // def checkJwt: ServiceCall[String, Boolean]
 
   val tokenParams = Seq("grant_type", "client_id", "client_secret", "username", "password", "refresh_token")
 
@@ -40,7 +45,8 @@ trait AuthService extends Service {
     named("auth").withCalls(
       //      restCall(Method.POST, "/api/auth/token?" + tokenParams.mkString("&"), token _)
       pathCall("/api/auth/jwt?" + tokenParams.mkString("&"), jwt _),
-      pathCall("/api/auth/token?" + tokenParams.mkString("&"), token _)
+      pathCall("/api/auth/token?" + tokenParams.mkString("&"), token _),
+      pathCall("/api/auth/check", checkToken _)
       //        pathCall("/api/auth/token", token _)
     )
       .withAutoAcl(true)
@@ -58,7 +64,8 @@ case class OAuth2AccessToken(access_token: String,
                              token_type: String,
                              expires_in: Option[Long],
                              refresh_token: Option[String],
-                             scope: Option[Seq[String]])
+                             scope: Option[Seq[String]],
+                             params: Map[String, String])
 
 object OAuth2AccessToken {
   /**
