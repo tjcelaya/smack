@@ -5,6 +5,8 @@ import java.io.{CharArrayWriter, PrintWriter}
 import akka.util.ByteString
 import com.lightbend.lagom.scaladsl.api.deser.{ExceptionSerializer, RawExceptionMessage}
 import com.lightbend.lagom.scaladsl.api.transport._
+import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import play.api.libs.json.{JsError, JsResultException, JsSuccess, Json}
 import play.api.{Environment, Mode}
 
@@ -22,7 +24,9 @@ import scala.util.control.NonFatal
   * This serializer is capable of converting Lagom built-in exceptions to and from JSON. Custom sub classes of
   * TransportException can also be deserialized by extending this class and overriding [[fromCodeAndMessage()]].
   */
-class FriendlyExceptionSerializer(environment: Environment) extends ExceptionSerializer {
+class FriendlyExceptionSerializer(environment: Environment)
+  extends ExceptionSerializer
+  with LazyLogging {
 
   override def serialize(exception: Throwable, accept: Seq[MessageProtocol]): RawExceptionMessage = {
     val (errorCode, message) = exception match {
@@ -51,7 +55,16 @@ class FriendlyExceptionSerializer(environment: Environment) extends ExceptionSer
       "detail" -> message.detail
     )))
 
-    RawExceptionMessage(errorCode, MessageProtocol(Some("application/json"), None, None), messageBytes)
+    val rawEx =
+      RawExceptionMessage(
+        errorCode,
+        MessageProtocol(Some("application/json"), None, None),
+        messageBytes)
+
+
+    logger.error("friendly exception found something for ya", rawEx)
+
+    rawEx
   }
 
   override def deserialize(message: RawExceptionMessage): Throwable = {
@@ -69,7 +82,7 @@ class FriendlyExceptionSerializer(environment: Environment) extends ExceptionSer
 
     val exceptionMessage = jsonParseResult match {
       case JsSuccess(m, _) => m
-      case JsError(_)      => new ExceptionMessage("UndeserializableException", message.message.utf8String)
+      case JsError(_) => new ExceptionMessage("UndeserializableException", message.message.utf8String)
     }
 
     fromCodeAndMessage(message.errorCode, exceptionMessage)
@@ -82,10 +95,11 @@ class FriendlyExceptionSerializer(environment: Environment) extends ExceptionSer
     * Lagom built-in exception.
     *
     * @param transportErrorCode The transport error code.
-    * @param exceptionMessage The exception message.
+    * @param exceptionMessage   The exception message.
     * @return The exception.
     */
-  protected def fromCodeAndMessage(transportErrorCode: TransportErrorCode, exceptionMessage: ExceptionMessage): Throwable = {
+  protected def fromCodeAndMessage(transportErrorCode: TransportErrorCode,
+                                   exceptionMessage: ExceptionMessage): Throwable = {
     TransportException.fromCodeAndMessage(transportErrorCode, exceptionMessage)
   }
 }

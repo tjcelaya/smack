@@ -9,13 +9,17 @@ import co.tjcelaya.smack.service.common.{FriendlyExceptionSerializer, OptionsSer
 import com.google.inject.Inject
 import com.lightbend.lagom.scaladsl.api.transport.{HeaderFilter, UserAgentHeaderFilter}
 import com.lightbend.lagom.scaladsl.api.{Descriptor, Service, ServiceCall}
+import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import play.api.libs.json._
 import play.api.Environment
 
 import scala.collection.immutable.Seq
 
 trait UserService
-  extends Service {
+  extends Service
+  with LazyLogging {
+
   def descriptor: Descriptor = {
     import Service._
     import co.tjcelaya.smack.service.common.LastKnownEnvironment._
@@ -29,6 +33,7 @@ trait UserService
     named("user")
       .withLocatableService(true)
       .withCalls(
+        restCall(Method.OPTIONS, "/", options _),
         restCall(Method.OPTIONS, "/api/user", options _),
         restCall(Method.POST, "/api/user", createUser _),
         restCall(Method.GET, "/api/user/:id", getUser _),
@@ -39,7 +44,7 @@ trait UserService
       .withAutoAcl(true)
       .withHeaderFilter(
         HeaderFilter.composite(
-          new VerboseLoggingHeaderFilter("UserService"),
+          new VerboseLoggingHeaderFilter(this.getClass.getSimpleName),
           UserAgentHeaderFilter // default
         )
       )

@@ -3,6 +3,7 @@ package co.tjcelaya.smack.service.auth.impl
 import java.sql.ResultSet
 import java.util.UUID
 
+import co.tjcelaya.smack.service.auth.api.{User, UserId}
 import com.lightbend.lagom.scaladsl.persistence.jdbc.JdbcSession
 import com.lightbend.lagom.scaladsl.persistence.jdbc.JdbcSession.tryWith
 

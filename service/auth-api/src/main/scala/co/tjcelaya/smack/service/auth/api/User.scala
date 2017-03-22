@@ -1,8 +1,7 @@
-package co.tjcelaya.smack.service.auth.impl
+package co.tjcelaya.smack.service.auth.api
 
 import java.util.UUID
 
-import co.tjcelaya.smack.service.auth.impl.AuthType.AuthType
 import play.api.libs.json._
 
 import scala.language.implicitConversions
@@ -18,7 +17,7 @@ case class User(id: UserId, name: String, hashedPassword: String)
   extends Authenticatable {
   override def authId: String = id.toString
 
-  override def authType: AuthType = AuthType.user
+  override def authType: AuthType.AuthType = AuthType.user
 }
 
 final class UserId(val u: UUID) extends AnyVal

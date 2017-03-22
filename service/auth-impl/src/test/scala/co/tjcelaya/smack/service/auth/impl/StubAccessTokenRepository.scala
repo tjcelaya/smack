@@ -1,5 +1,7 @@
 package co.tjcelaya.smack.service.auth.impl
 
+import co.tjcelaya.smack.service.auth.api.Authenticatable
+
 import scala.concurrent.Future
 import scalaoauth2.provider.{AccessToken, AuthInfo}
 

@@ -1,5 +1,7 @@
 package co.tjcelaya.smack.service.auth.impl
 
+import akka.Done
+import akka.actor.ActorSystem
 import co.tjcelaya.smack.service.auth.api._
 import com.lightbend.lagom.scaladsl.api.transport.TransportException
 import com.lightbend.lagom.scaladsl.server.LocalServiceLocator
@@ -17,6 +19,8 @@ class AuthServiceSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll
     def getClientRepository: StubClientRepository
 
     def getUserRepository: StubUserRepository
+
+    implicit val actorSystem: ActorSystem
   }
 
   def testWithServer(block: (ConfigurableServer, AuthService) => Future[Assertion]): Future[Assertion] = {
@@ -104,4 +108,23 @@ class AuthServiceSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll
         }
     }
   }
+
+
+  it should "allow creation of valid clients, owners, and such" in {
+    testWithServer { (s: ConfigurableServer, c: AuthService) =>
+      val testClientState = Client(ClientId("abc"), "test client", "secret")
+      c.registerClient.invoke(testClientState)
+        .flatMap {
+          createResponse =>
+            createResponse shouldEqual Done
+
+            c.showClient("abc").invoke()
+              .flatMap {
+                showResponse =>
+                  showResponse shouldEqual testClientState
+              }
+        }
+    }
+  }
+
 }

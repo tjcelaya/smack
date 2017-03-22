@@ -1,5 +1,6 @@
 package co.tjcelaya.smack.service.auth.impl
 
+import co.tjcelaya.smack.service.auth.api.{Authenticatable, ClientId, User}
 import co.tjcelaya.smack.service.common.DateFactory
 import com.lightbend.lagom.scaladsl.api.transport.{ExceptionMessage, TransportErrorCode, TransportException}
 import com.typesafe.scalalogging.slf4j.LazyLogging
@@ -11,17 +12,6 @@ import scalaoauth2.provider._
   * Created by tj on 3/2/17.
   */
 
-object AuthType extends Enumeration {
-  type AuthType = Value
-  val user, client = Value
-}
-
-
-trait Authenticatable {
-  def authId: String
-
-  def authType: AuthType.AuthType
-}
 
 class OAuth2Provider(accessTokenRepository: AccessTokenRepository,
                      clientRepository: ClientRepository,

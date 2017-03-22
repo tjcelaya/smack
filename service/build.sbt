@@ -47,7 +47,8 @@ val serviceApiDefaultDeps = Seq(
 )
 
 val serviceImplDefaultDeps = Seq(
-  lagomScaladslPersistenceCassandra,
+  // lagomScaladslPersistenceCassandra,
+  lagomScaladslPersistenceJdbc,
   lagomScaladslTestKit,
   macwire,
   scalaTest,
@@ -74,6 +75,9 @@ lazy val `common` = (project in file("common"))
       "io.spray" %% "spray-httpx" % "1.3.3",
       "com.fasterxml.uuid" % "java-uuid-generator" % "3.1.3",
       lagomScaladslApi,
+      // TODO: find a way to depend on whatever version lagom depends?
+      "com.typesafe.scala-logging" %% "scala-logging-api" % "2.1.2",
+      "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2"
       //"com.nulab-inc" %% "scala-oauth2-core" % "1.3.0",
 
       // list of unused lagom packages for reference
@@ -88,7 +92,6 @@ lazy val `common` = (project in file("common"))
       // lagomScaladslPersistenceCassandra,
       // lagomScaladslPersistenceJdbc,
       // lagomScaladslPubSub,
-      lagomScaladslTestKit
     )
   )
 

@@ -1,18 +1,21 @@
 package co.tjcelaya.smack.service.auth.api
 
-import akka.NotUsed
+import akka.{Done, NotUsed}
 import co.tjcelaya.smack.service.common.LastKnownEnvironment.{getEnv, hasEnv, setEnv}
-import co.tjcelaya.smack.service.common.{FriendlyExceptionSerializer, LastKnownEnvironment, VerboseLoggingHeaderFilter}
+import co.tjcelaya.smack.service.common.{FriendlyExceptionSerializer, LastKnownEnvironment, OptionsServiceCallGenerator, VerboseLoggingHeaderFilter}
 import com.lightbend.lagom.scaladsl.api.transport._
 import com.lightbend.lagom.scaladsl.api.{Descriptor, Service, ServiceCall}
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import play.api.Environment
-import play.api.libs.json.{Format, Json}
+import play.api.libs.json.{Format, JsArray, Json}
 
 
 /**
   * Created by tj on 2/27/17.
   */
-trait AuthService extends Service {
+trait AuthService extends Service with LazyLogging {
+
+  def options: ServiceCall[NotUsed, JsArray] = OptionsServiceCallGenerator(descriptor)
 
   def token(grant_type: String,
             client_id: String,
@@ -30,6 +33,10 @@ trait AuthService extends Service {
 
   def checkToken: ServiceCall[String, Boolean]
 
+  def registerClient: ServiceCall[Client, Done]
+
+  def showClient(id: String): ServiceCall[NotUsed, String]
+
   // you shouldn't need to check a jwt, it's signed!
   // def checkJwt: ServiceCall[String, Boolean]
 
@@ -43,10 +50,14 @@ trait AuthService extends Service {
     val env = getEnv
 
     named("auth").withCalls(
+      restCall(Method.OPTIONS, "/", options _),
+      restCall(Method.OPTIONS, "/api/auth", options _),
       //      restCall(Method.POST, "/api/auth/token?" + tokenParams.mkString("&"), token _)
       pathCall("/api/auth/jwt?" + tokenParams.mkString("&"), jwt _),
       pathCall("/api/auth/token?" + tokenParams.mkString("&"), token _),
-      pathCall("/api/auth/check", checkToken _)
+      pathCall("/api/auth/check", checkToken _),
+      restCall(Method.POST, "/api/auth/client", registerClient _),
+      restCall(Method.GET, "/api/auth/client/:id", showClient _)
       //        pathCall("/api/auth/token", token _)
     )
       .withAutoAcl(true)
@@ -56,39 +67,6 @@ trait AuthService extends Service {
           UserAgentHeaderFilter // default
         )
       )
-      .withExceptionSerializer(new FriendlyExceptionSerializer(LastKnownEnvironment.getEnv))
+      .withExceptionSerializer(new FriendlyExceptionSerializer(getEnv))
   }
 }
-
-case class OAuth2AccessToken(access_token: String,
-                             token_type: String,
-                             expires_in: Option[Long],
-                             refresh_token: Option[String],
-                             scope: Option[Seq[String]],
-                             params: Map[String, String])
-
-object OAuth2AccessToken {
-  /**
-    * Format for converting greeting messages to and from JSON.
-    *
-    * This will be picked up by a Lagom implicit conversion from Play's JSON format to Lagom's message serializer.
-    */
-  implicit val format: Format[OAuth2AccessToken] = Json.format[OAuth2AccessToken]
-}
-
-//final abstract class GrantType {
-//  val CLIENT_CREDENTIALS = "client_credentials"
-//}
-
-case class BadGrantTypeException(grantType: String)
-  extends TransportException(TransportErrorCode.BadRequest, s"grant_type provided is invalid or unsupported: $grantType")
-
-case class InvalidClientSecretException()
-  extends TransportException(TransportErrorCode.BadRequest, s"client_secret must be provided")
-
-case class InvalidUsernameException()
-  extends TransportException(TransportErrorCode.BadRequest, s"username must be provided")
-
-case class InvalidPasswordException()
-  extends TransportException(TransportErrorCode.BadRequest, s"Password must be provided")
-

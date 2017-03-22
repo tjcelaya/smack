@@ -1,8 +1,11 @@
 package co.tjcelaya.smack.service.auth.impl
 
-import java.sql.{ResultSet, Types}
+import java.sql.{PreparedStatement, Statement}
 import java.util.{Date, UUID}
 
+import co.tjcelaya.smack.service.auth.api.{Authenticatable, Client, User}
+import co.tjcelaya.smack.service.common.DateFactory
+import com.lightbend.lagom.scaladsl.persistence.PersistentEntityRegistry
 import com.lightbend.lagom.scaladsl.persistence.jdbc.JdbcSession
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import play.api.libs.functional.syntax._
@@ -80,117 +83,25 @@ class RedisAccessTokenRepository(redisClient: RedisClient)
     redisClient.del("token:" + token).map[Unit](_ => ())
 }
 
-class MySQLAccessTokenRepository()
-                                (implicit ec: ExecutionContext)
+class MySQLAccessTokenRepository(persistentEntityRegistry: PersistentEntityRegistry)
   extends AccessTokenRepository
     with LazyLogging {
 
-  // private val db = Database.forConfig("auth-mysql")
-
   override def persist(accessToken: AccessToken,
                        authInfo: AuthInfo[_ <: Authenticatable]): Future[AccessToken] = {
-    //      val inserts = for {
-    //      sessionI <-
-    //        sqlu"""
-    //        INSERT INTO oauth_session (client_id, owner_type, owner_id, client_redirect_uri)
-    //        VALUES (${authInfo.clientId}, ${authInfo.user.authType}, ${authInfo.user.authId}, ${authInfo.redirectUri})"""
-    //      scopeI <-
-    //        sqlu"""
-    //        INSERT INTO oauth_access_token_scope (access_token_id, scope_id)
-    //        VALUES (${accessToken.token}, ${accessToken.scope.get.mkString(" ")})
-    //        """
-    //
-    //      """
-    //        INSERT INTO oauth_refresh_token (id, access_token_id, expire_time)
-    //        VALUES (${accessToken.refreshToken.get}, ${accessToken.token}, ${accessToken.expiresIn})
-    //        """
-    //      """
-    //        INSERT INTO oauth_access_token (id, session_id, expire_time)
-    //        VALUES (${accessToken.token}, $insertedSessionId, ${accessToken.expiresIn})
-    //        """
-    //    } yield { uI + tI }
-
-    //   LEFT JOIN oauth_refresh_token ort
-    // ON oat.id = ort.access_token_id
-    //   LEFT JOIN oauth_access_token_param_map oatparams
-    // ON oat.id = oatparams.access_token_id
-    // AND oat.session_id = oatparams.session_id
+    // persistentEntityRegistry.refFor[AccessTokenEntity](accessToken.token)
 
 
-    //    val maybeInserted: Future[Int] = db.run(inserts.transactionally)
-    //    maybeInserted.map[AccessToken] { affected =>
-    //      logger.error(s"created token $affected")
     Future.successful(accessToken)
-    //    }
   }
 
   override def find(token: String): Future[Option[AccessToken]] = {
-    // val tokenSelect = sql"""SELECT id FROM oauth_access_token""".as[(String)]
-    //        SELECT
-    //          oat.id token
-    //          -- ort.id refreshToken,
-    //          -- GROUP_CONCAT(os.id) scope,
-    //          -- oat.expire_time lifeSeconds,
-    //          -- oat.created_at,
-    //          -- oatparams.params
-    //        FROM oauth_access_token oat
-    //        LEFT JOIN oauth_access_token_scope oats
-    //          ON oat.id = oats.access_token_id
-    //        LEFT JOIN oauth_scope os
-    //          ON oats.scope_id = os.id
-    //        LEFT JOIN oauth_refresh_token ort
-    //          ON oat.id = ort.access_token_id
-    //        LEFT JOIN oauth_access_token_param_map oatparams
-    //          ON oat.id = oatparams.access_token_id
-    //          AND oat.session_id = oatparams.session_id
-    //        WHERE
-    //          oat.id = $token
-
-    // val maybeRow: Future[Seq[String]] = db.run(tokenSelect)
-    // maybeRow.map[Option[AccessToken]] {
-    //   case empty: Seq[_] if empty.isEmpty => None
-    //   case found: Seq[(String)] => Some(AccessToken("t", None, None, None, DateFactory.now))
-    // }
-
     Future.successful(None)
   }
 
   override def findByAuthenticatable(authenticatable: Authenticatable): Future[Option[AccessToken]] = {
     val idStr = authenticatable.authId.toString
     logger.error(s"user id $idStr")
-    //    val tokenSelect =
-    //      sql"""SELECT
-    //          oat.id token
-    //        FROM oauth_owner oo
-    //        JOIN oauth_session osess
-    //          ON oo.id = osess.owner_id
-    //          AND oo.owner_type = osess.owner_type
-    //        JOIN oauth_access_token oat
-    //          ON oat.session_id = osess.id
-    //        LEFT JOIN oauth_access_token_scope oats
-    //          ON oat.id = oats.access_token_id
-    //        LEFT JOIN oauth_scope osc
-    //          ON oats.scope_id = osc.id
-    //        LEFT JOIN oauth_refresh_token ort
-    //          ON oat.id = ort.access_token_id
-    //        LEFT JOIN oauth_access_token_param_map oatparams
-    //          ON oat.id = oatparams.access_token_id
-    //          AND oat.session_id = oatparams.session_id
-    //        WHERE
-    //          oo.id = $idStr
-    //        """.as[(String)]
-    //
-    //    db.run(tokenSelect)
-    //      .map[Option[AccessToken]] {
-    //      case empty: Seq[_] if empty.isEmpty =>
-    //        None
-    //      case expectedUnique: Seq[_] if 1 < expectedUnique.size =>
-    //        logger.error(
-    //          s"unexpected result size in findByUserId from id: $idStr , size: ${expectedUnique.size}")
-    //        None
-    //      case found: Seq[String] if found.size == 1 =>
-    //        Some(AccessToken(found.head, None, None, None, DateFactory.now))
-    //    }
     Future.successful(None)
   }
 

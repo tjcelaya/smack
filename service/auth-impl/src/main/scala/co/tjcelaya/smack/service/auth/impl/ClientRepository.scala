@@ -3,25 +3,14 @@ package co.tjcelaya.smack.service.auth.impl
 import java.sql.{ResultSet, Types}
 import java.util.UUID
 
-import co.tjcelaya.smack.service.auth.impl.AuthType.AuthType
+import co.tjcelaya.smack.service.auth.api.{Client, ClientId, AuthType}
 import com.lightbend.lagom.scaladsl.persistence.jdbc.JdbcSession
 import com.typesafe.scalalogging.slf4j.LazyLogging
+import play.api.libs.json.{Format, Json}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 
-case class Client(id: ClientId, name: String, secret: String)
-  extends Authenticatable {
-  override def authId: String = id.s
-
-  override def authType: AuthType = AuthType.client
-}
-
-final class ClientId(val s: String) extends AnyVal
-
-object ClientId {
-  implicit def fromUUID(uuid: UUID): ClientId = new ClientId(uuid.toString)
-}
 
 trait ClientRepository {
   def exists(id: ClientId, maybeSecret: Option[String] = None): Future[Boolean]

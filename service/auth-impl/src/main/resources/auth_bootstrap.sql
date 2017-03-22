@@ -1,9 +1,22 @@
--- drop database auth;
+drop database auth;
+
 create database if not exists auth;
 use auth;
 DROP TABLE IF EXISTS oauth_scope;
+
+-- --
+DROP TABLE IF EXISTS oauth_owner;
+CREATE TABLE oauth_owner (
+    id varchar(255) NOT NULL,
+    owner_type enum('client','user') NOT NULL,
+    name varchar(255) NULL,
+    hashed_password varchar(255),
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- --
+DROP TABLE IF EXISTS oauth_scope;
 CREATE TABLE oauth_scope (
-    id varchar(40) NOT NULL,
+    id varchar(255) NOT NULL,
     description varchar(255) NOT NULL,
     PRIMARY KEY (id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -12,7 +25,7 @@ CREATE TABLE oauth_scope (
 -- --
 DROP TABLE IF EXISTS oauth_grant;
 CREATE TABLE oauth_grant (
-    id varchar(40) NOT NULL,
+    id varchar(255) NOT NULL,
     PRIMARY KEY (id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -21,8 +34,8 @@ CREATE TABLE oauth_grant (
 DROP TABLE IF EXISTS oauth_grant_scope;
 CREATE TABLE oauth_grant_scope (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    grant_id varchar(40) NOT NULL,
-    scope_id varchar(40) NOT NULL,
+    grant_id varchar(255) NOT NULL,
+    scope_id varchar(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -40,19 +53,19 @@ CREATE TABLE oauth_grant_scope (
 -- --
 DROP TABLE IF EXISTS oauth_client;
 CREATE TABLE oauth_client (
-    id varchar(40) NOT NULL,
+    id varchar(255) NOT NULL,
     secret varchar(40) NOT NULL,
     name varchar(255) NOT NULL,
-    PRIMARY KEY (id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
     UNIQUE KEY oauth_client_id_secret_unique_idx (id, secret)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- --
 DROP TABLE IF EXISTS oauth_client_endpoint;
 CREATE TABLE oauth_client_endpoint (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    client_id varchar(40) NOT NULL,
+    client_id varchar(255) NOT NULL,
     redirect_uri varchar(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -68,8 +81,8 @@ CREATE TABLE oauth_client_endpoint (
 DROP TABLE IF EXISTS oauth_client_scope;
 CREATE TABLE oauth_client_scope (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    client_id varchar(40) NOT NULL,
-    scope_id varchar(40) NOT NULL,
+    client_id varchar(255) NOT NULL,
+    scope_id varchar(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -88,8 +101,8 @@ CREATE TABLE oauth_client_scope (
 DROP TABLE IF EXISTS oauth_client_grant;
 CREATE TABLE oauth_client_grant (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    client_id varchar(40) NOT NULL,
-    grant_id varchar(40) NOT NULL,
+    client_id varchar(255) NOT NULL,
+    grant_id varchar(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -110,17 +123,21 @@ CREATE TABLE oauth_client_grant (
 DROP TABLE IF EXISTS oauth_session;
 CREATE TABLE oauth_session (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    client_id varchar(40) NOT NULL,
-    owner_type enum('client','user') NOT NULL,
+    client_id varchar(255) NOT NULL,
     owner_id varchar(255) NOT NULL,
     client_redirect_uri varchar(255) DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    INDEX oauth_session_client_id_owner_type_owner_id_idx (client_id, owner_type, owner_id),
+    INDEX oauth_session_client_id_owner_id_idx (client_id, owner_id),
     CONSTRAINT oauth_session_client_id_fk
         FOREIGN KEY (client_id)
         REFERENCES oauth_client (id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT oauth_session_owner_id_fk
+        FOREIGN KEY (owner_id)
+        REFERENCES oauth_owner (id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -147,7 +164,7 @@ CREATE TABLE oauth_session_scope (
 -- --
 DROP TABLE IF EXISTS oauth_auth_code;
 CREATE TABLE oauth_auth_code (
-    id varchar(40) NOT NULL,
+    id varchar(255) NOT NULL,
     session_id BIGINT UNSIGNED NOT NULL,
     redirect_uri varchar(255) NOT NULL,
     expire_time INT(11) NULL,
@@ -164,8 +181,8 @@ CREATE TABLE oauth_auth_code (
 DROP TABLE IF EXISTS oauth_auth_code_scope;
 CREATE TABLE oauth_auth_code_scope (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    auth_code_id varchar(40) NOT NULL,
-    scope_id varchar(40) NOT NULL,
+    auth_code_id varchar(255) NOT NULL,
+    scope_id varchar(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -183,7 +200,7 @@ CREATE TABLE oauth_auth_code_scope (
 -- --
 DROP TABLE IF EXISTS oauth_access_token;
 CREATE TABLE oauth_access_token (
-    id varchar(40) NOT NULL,
+    id varchar(255) NOT NULL,
     session_id BIGINT UNSIGNED NOT NULL,
     expire_time INT(11) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -198,16 +215,20 @@ CREATE TABLE oauth_access_token (
 -- --
 DROP TABLE IF EXISTS oauth_access_token_param_map;
 CREATE TABLE oauth_access_token_param_map (
-    access_token_id varchar(40) NOT NULL,
-    session_id BIGINT UNSIGNED NOT NULL,
-    params TINYTEXT NOT NULL
+    access_token_id varchar(255) NOT NULL,
+    params TINYTEXT NOT NULL,
+    PRIMARY KEY (access_token_id),
+    CONSTRAINT oauth_access_token_param_map_access_token_id_fk
+        FOREIGN KEY (access_token_id)
+        REFERENCES oauth_access_token (id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- --
 DROP TABLE IF EXISTS oauth_access_token_scope;
 CREATE TABLE oauth_access_token_scope (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    access_token_id varchar(40) NOT NULL,
-    scope_id varchar(40) NOT NULL,
+    access_token_id varchar(255) NOT NULL,
+    scope_id varchar(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -225,8 +246,8 @@ CREATE TABLE oauth_access_token_scope (
 -- --
 DROP TABLE IF EXISTS oauth_refresh_token;
 CREATE TABLE oauth_refresh_token (
-    id varchar(40) NOT NULL,
-    access_token_id varchar(40) NOT NULL,
+    id varchar(255) NOT NULL,
+    access_token_id varchar(255) NOT NULL,
     expire_time INT(11) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -236,14 +257,6 @@ CREATE TABLE oauth_refresh_token (
         FOREIGN KEY (access_token_id)
         REFERENCES oauth_access_token (id)
         ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
--- --
-CREATE TABLE oauth_owner (
-    id varchar(255) NOT NULL,
-    owner_type enum('client','user') NOT NULL,
-    name varchar(255) NULL,
-    hashed_password varchar(255)
-    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO oauth_grant (id)

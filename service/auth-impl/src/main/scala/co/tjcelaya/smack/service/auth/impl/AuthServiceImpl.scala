@@ -1,12 +1,14 @@
 package co.tjcelaya.smack.service.auth.impl
 
-import akka.NotUsed
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import co.tjcelaya.smack.service.auth.api._
-import co.tjcelaya.smack.service.auth.impl.AuthType.AuthType
-import co.tjcelaya.smack.service.common.{DateFactory, MultiException}
+import co.tjcelaya.smack.service.auth.api.exceptions._
+import co.tjcelaya.smack.service.auth.impl.entity._
+import co.tjcelaya.smack.service.common.{DateFactory, MultiException, TestAwareDispatcherSelector}
 import com.lightbend.lagom.scaladsl.api.ServiceCall
 import com.lightbend.lagom.scaladsl.api.transport.TransportException
+import com.lightbend.lagom.scaladsl.persistence.PersistentEntityRegistry
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtJson}
 import play.api.Environment
@@ -20,14 +22,20 @@ import scalaoauth2.provider._
 class AuthServiceImpl(environment: Environment,
                       system: ActorSystem,
                       accessTokenRepository: AccessTokenRepository,
-                      oauth2Provider: OAuth2Provider)
+                      oauth2Provider: OAuth2Provider,
+                      persistentEntityRegistry: PersistentEntityRegistry)
   extends AuthService
-    with LazyLogging {
+    with TestAwareDispatcherSelector {
+  implicit private val env = environment
+  implicit private val sys = system
 
-  logger.error("booting " + this.getClass.toString)
+  logger.warn(s"booting ${getClass.getSimpleName}")
 
-  override def finalize(): Unit = logger.error("terminating " + this.getClass.toString);
-  super.finalize()
+  override def finalize(): Unit = {
+    logger.warn(s"terminating ${getClass.getSimpleName}")
+    super.finalize()
+  }
+
 
   val tokenEndpoint = new TokenEndpoint {
     override val handlers = Map(
@@ -35,12 +43,6 @@ class AuthServiceImpl(environment: Environment,
       OAuthGrantType.PASSWORD -> new Password
     )
   }
-
-  def serviceDispatcher: ExecutionContext =
-    if (environment.mode.equals(play.api.Mode.Test))
-      ExecutionContext.Implicits.global
-    else
-      system.dispatcher
 
 
   override def jwt(grant_type: String,
@@ -71,7 +73,7 @@ class AuthServiceImpl(environment: Environment,
           "key",
           JwtAlgorithm.HS256))
       Future.successful(t.toString)
-    }(serviceDispatcher)
+    }(dispatcher)
   }
 
   override def token(grant_type: String,
@@ -88,7 +90,7 @@ class AuthServiceImpl(environment: Environment,
 
       var errors: List[TransportException] = List[TransportException]()
       val noParams = Map.empty[String, Seq[String]]
-      val authFlow: (AuthType, Map[String, Seq[String]]) = grant_type match {
+      val authFlow: (AuthType.AuthType, Map[String, Seq[String]]) = grant_type match {
         case OAuthGrantType.AUTHORIZATION_CODE => (AuthType.user, noParams)
         case OAuthGrantType.REFRESH_TOKEN => (AuthType.user, noParams)
         case OAuthGrantType.CLIENT_CREDENTIALS =>
@@ -130,7 +132,7 @@ class AuthServiceImpl(environment: Environment,
         case params: Map[String, Seq[String]] =>
           tokenEndpoint.handleRequest(
             new AuthorizationRequest(Map(), m ++ authFlow._2), oauth2Provider
-          )(serviceDispatcher)
+          )(dispatcher)
             .flatMap[OAuth2AccessToken] {
             case Left(err: OAuthError) =>
               throw err
@@ -142,7 +144,7 @@ class AuthServiceImpl(environment: Environment,
                 grantHandlerResult.refreshToken,
                 grantHandlerResult.scope.map(_.split(" ").toSeq),
                 grantHandlerResult.params + ("auth_type" -> authFlow._1.toString)))
-          }(serviceDispatcher)
+          }(dispatcher)
       }
 
       r
@@ -152,12 +154,20 @@ class AuthServiceImpl(environment: Environment,
     accessTokenRepository.find(tok).map {
       case None => false
       case Some(_) => true
-    }(serviceDispatcher)
+    }(dispatcher)
+  }
+
+  override def registerClient = ServiceCall { request =>
+    val ref = persistentEntityRegistry.refFor[ClientEntity](request.id.s)
+
+    ref.ask(CreateClient(request.id, request.name, request.secret))
+  }
+
+  override def showClient(id: String) = ServiceCall { request =>
+//    val ref = persistentEntityRegistry.refFor[ClientEntity](id)
+//
+//    ref.ask(ShowClient)
+    val ref = persistentEntityRegistry.refFor[HelloEntity](id)
+    ref.ask(Hello(id, None))
   }
 }
-
-
-//object Mode extends Enumeration {
-//  type Mode = Value
-//  val Dev, Test, Prod = Value
-//}

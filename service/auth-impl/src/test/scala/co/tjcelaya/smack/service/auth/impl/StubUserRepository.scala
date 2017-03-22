@@ -2,6 +2,8 @@ package co.tjcelaya.smack.service.auth.impl
 
 import java.util.UUID
 
+import co.tjcelaya.smack.service.auth.api.{User, UserId}
+
 import scala.concurrent.Future
 import scala.util.Random
 

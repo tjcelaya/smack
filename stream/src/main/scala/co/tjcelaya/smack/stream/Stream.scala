@@ -1,14 +1,14 @@
 package co.tjcelaya.smack.stream
 
 import org.apache.spark.storage.StorageLevel
-import org.slf4j.{Logger, LoggerFactory}
+import com.typesafe.scalalogging.Logger
 
 /**
   * Created by tj on 1/29/17.
   *
   */
 object Stream {
-  private val logger: Logger = LoggerFactory.getLogger(Stream.getClass)
+  private val logger: Logger = Logger(Stream.getClass)
 
   def main(args: Array[String]) {
     logger.info("stream booting")

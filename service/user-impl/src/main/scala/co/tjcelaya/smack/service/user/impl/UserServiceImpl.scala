@@ -16,25 +16,23 @@ import com.lightbend.lagom.scaladsl.api.ServiceCall
 import com.lightbend.lagom.scaladsl.api.transport.NotFound
 import com.lightbend.lagom.scaladsl.persistence.cassandra.CassandraSession
 import com.lightbend.lagom.scaladsl.persistence.{PersistentEntityRegistry, ReadSide}
-import org.slf4j.{Logger, LoggerFactory}
+import com.typesafe.scalalogging.slf4j.LazyLogging
+import org.slf4j.Logger
 import play.api.Environment
 
 import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
 
-class UserServiceImpl(
-                       registry: PersistentEntityRegistry,
-                       system: ActorSystem,
-                       environment: Environment,
-                       readSide: ReadSide,
-                       cassandraSession: CassandraSession
-                     )(
-                       implicit ec: ExecutionContext,
-                       mat: Materializer
-                     ) extends UserService
-{
+class UserServiceImpl(registry: PersistentEntityRegistry,
+                      system: ActorSystem,
+                      environment: Environment,
+                      readSide: ReadSide,
+                      cassandraSession: CassandraSession)
+                     (implicit ec: ExecutionContext,
+                      mat: Materializer)
+  extends UserService {
 
-  private final val log: Logger = LoggerFactory.getLogger(classOf[UserServiceImpl])
+  // private final val log: Logger = LoggerFactory.getLogger(classOf[UserServiceImpl])
 
   LastKnownEnvironment.setEnv(environment)
 
@@ -82,7 +80,8 @@ class UserServiceImpl(
     Future.successful(immutable.Seq(api.User(UUID.randomUUID(), "")))
   }
 
-  override def getUsersPage(page: Option[Int] = Some(1), pageSize: Option[Int] = Some(10)) = ServiceCall { _ =>
+  override def getUsersPage(page: Option[Int] = Some(1),
+                            pageSize: Option[Int] = Some(10)) = ServiceCall { _ =>
     val p = Paginator[api.User](
       page.getOrElse(1),
       pageSize.getOrElse(10),

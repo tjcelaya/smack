@@ -1,7 +1,12 @@
 version: "3"
 services:
+
+  # data store
+
   cassandra:
     image: cassandra:3.9
+    ports:
+      - 9042:9042
   cqlsh:
     image: cassandra:3.9
     # relies on links creating entries in /etc/hosts
@@ -9,22 +14,100 @@ services:
     tty: true
     links:
       - cassandra
+  mysql:
+    image: percona:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - 3306:3306
+
+  auth-mysql:
+    image: percona:latest
+    volumes:
+      - ./infra/data/auth-mysql:/var/lib/mysql/
+      - ./service/auth-impl/src/main/resources/auth_bootstrap.sql:/docker-entrypoint-initdb.d/auth_bootstrap.sql
+    environment:
+      MYSQL_USER: "auth"
+      MYSQL_PASSWORD: "auth"
+      MYSQL_DATABASE: "auth"
+      MYSQL_ROOT_PASSWORD: "root"
+    ports:
+      - 33061:3306
+
+  # data move
+
   redis:
     image: redis:3-alpine
     ports:
       - 6379:6379
+  kafka:
+    image: spotify/kafka:latest
+    environment:
+     ADVERTISED_HOST: localhost
+     ADVERTISED_PORT: 9092
+    ports:
+      - 2181:2181
+      - 9092:9092
   spark:
     image: gettyimages/spark:latest
     command: bin/spark-shell
     ports:
-      - 4040
+      - 4040:4040
     volumes:
       - /tmp
-  sbt:
+
+
+  # data do
+
+  state:
+    image: tjcelaya/smack-state:latest
+    ports:
+      - 8081:8888
+    environment:
+      STATE_HTTP_HOST: "0.0.0.0"
+
+  stream:
+    image: tjcelaya/smack-stream:latest
+    ports:
+      - 8082:8080
+    environment:
+      STREAM_HTTP_HOST: "0.0.0.0"
+
+  web:
+    image: tjcelaya/smack-web:latest
+    ports:
+      - 8080:8080
+    environment:
+      WEB_HTTP_HOST: "0.0.0.0"
+
+  # develop
+
+  sbt-state:
     image: 1science/sbt:latest
     command: sbt ~console
+    environment:
+      SBT_VERSION: 0.13.11
+    volumes:
+      - $PWD/state:/app
+      - $HOME/.ivy2:/root/.ivy2
+    links:
+      - cassandra
+      - redis
+      - kafka
+
+  sbt-stream:
+    image: 1science/sbt:latest
+    command: sbt ~console
+    environment:
+      SBT_VERSION: 0.13.11
     volumes:
       - $PWD/stream:/app
       - $HOME/.ivy2:/root/.ivy2
-#  scala:
-#    build:
+  sbt-web:
+    image: 1science/sbt:latest
+    command: sbt ~console
+    environment:
+      SBT_VERSION: 0.13.11
+    volumes:
+      - $PWD/web:/app
+      - $HOME/.ivy2:/root/.ivy2

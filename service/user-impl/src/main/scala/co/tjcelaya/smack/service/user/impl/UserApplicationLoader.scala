@@ -7,6 +7,7 @@ import com.lightbend.lagom.scaladsl.persistence.cassandra.CassandraPersistenceCo
 import com.lightbend.lagom.scaladsl.server._
 import play.api.libs.ws.ahc.AhcWSComponents
 import com.softwaremill.macwire._
+import play.api.LoggerConfigurator
 
 abstract class UserApplication(context: LagomApplicationContext)
   extends LagomApplication(context)
@@ -18,8 +19,8 @@ abstract class UserApplication(context: LagomApplicationContext)
   )
   override lazy val jsonSerializerRegistry = UserSerializerRegistry
 
-  persistentEntityRegistry.register(wire[UserEntity])
-  readSide.register[UserEvent](wire[UserEventProcessor])
+  // persistentEntityRegistry.register(wire[UserEntity])
+  // readSide.register[UserEvent](wire[UserEventProcessor])
 }
 
 class UserApplicationLoader extends LagomApplicationLoader {
@@ -27,8 +28,13 @@ class UserApplicationLoader extends LagomApplicationLoader {
     override def serviceLocator = NoServiceLocator
   }
 
-  override def loadDevMode(context: LagomApplicationContext) =
+  override def loadDevMode(context: LagomApplicationContext) ={
+//    val environment = context.playContext.environment
+//    LoggerConfigurator(environment.classLoader).foreach {
+//      _.configure(environment)
+//    }
     new UserApplication(context) with LagomDevModeComponents
+  }
 
   override def describeServices = List(
     readDescriptor[UserService]
