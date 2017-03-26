@@ -28,6 +28,8 @@ val cassandraHost = sys.env.getOrElse("CASSANDRA_HOST", "localhost")
 val cassandraPort = sys.env.getOrElse("CASSANDRA_PORT", 4000).toString.toInt
 lagomCassandraPort in ThisBuild := cassandraPort
 
+lagomCassandraCleanOnStart in ThisBuild := usingEmbeddedCassandra
+
 lagomUnmanagedServices in ThisBuild := Map(
   if (usingEmbeddedCassandra)
     "null" -> "http://localhost:0"
@@ -47,8 +49,6 @@ val serviceApiDefaultDeps = Seq(
 )
 
 val serviceImplDefaultDeps = Seq(
-  // lagomScaladslPersistenceCassandra,
-  lagomScaladslPersistenceJdbc,
   lagomScaladslTestKit,
   macwire,
   scalaTest,
@@ -60,11 +60,11 @@ val serviceImplDefaultDeps = Seq(
 
 lazy val `service` = (project in file("."))
   .aggregate(
-    `common`,
-    `auth-api`,
-    `auth-impl`,
-    `user-api`,
-    `user-impl`
+    `common`
+    , `auth-api`
+    , `auth-impl`
+//    , `user-api`
+//    , `user-impl`
   )
 
 lazy val `common` = (project in file("common"))
@@ -105,7 +105,9 @@ lazy val `user-api` = (project in file("user-api"))
 lazy val `user-impl` = (project in file("user-impl"))
   .enablePlugins(LagomScala)
   .settings(
-    libraryDependencies ++= serviceImplDefaultDeps,
+    libraryDependencies ++= serviceImplDefaultDeps ++ Seq(
+      lagomScaladslPersistenceCassandra
+    ),
     lagomCassandraKeyspace := "user"
   )
   .settings(lagomForkedTestSettings: _*)

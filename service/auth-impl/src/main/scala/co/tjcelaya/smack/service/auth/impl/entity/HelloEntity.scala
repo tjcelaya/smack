@@ -70,7 +70,7 @@ class HelloEntity extends PersistentEntity {
       case (Hello(name, organization), ctx, state) =>
         // Reply with a message built from the current message, and the name of
         // the person we're meant to say hello to.
-        ctx.reply(s"\$message, \$name!")
+        ctx.reply(s"$message, $name!")
 
     }.onEvent {
 

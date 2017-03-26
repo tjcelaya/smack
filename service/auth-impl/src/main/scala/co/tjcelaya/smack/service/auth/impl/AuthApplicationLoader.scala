@@ -2,7 +2,6 @@ package co.tjcelaya.smack.service.auth.impl
 
 import com.lightbend.lagom.scaladsl.api.ServiceLocator
 import com.lightbend.lagom.scaladsl.api.ServiceLocator.NoServiceLocator
-import com.lightbend.lagom.scaladsl.persistence.cassandra.CassandraPersistenceComponents
 import com.lightbend.lagom.scaladsl.persistence.jdbc.{JdbcPersistenceComponents, JdbcSession}
 import com.lightbend.lagom.scaladsl.server._
 import com.lightbend.lagom.scaladsl.devmode.LagomDevModeComponents
@@ -38,7 +37,7 @@ class AuthApplicationLoader extends LagomApplicationLoader {
 abstract class AuthApplication(context: LagomApplicationContext)
   extends LagomApplication(context)
     with AhcWSComponents
-    with CassandraPersistenceComponents
+    with JdbcPersistenceComponents
     with HikariCPComponents {
 
   private val env: Environment = context.playContext.environment
