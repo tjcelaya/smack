@@ -35,7 +35,7 @@ trait AuthService extends Service with LazyLogging {
 
   def registerClient: ServiceCall[Client, Done]
 
-  def showClient(id: String): ServiceCall[NotUsed, String]
+  def showClient(id: String): ServiceCall[NotUsed, Client]
 
   // you shouldn't need to check a jwt, it's signed!
   // def checkJwt: ServiceCall[String, Boolean]

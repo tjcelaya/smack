@@ -28,6 +28,7 @@ class AuthServiceImpl(environment: Environment,
     with TestAwareDispatcherSelector {
   implicit private val env = environment
   implicit private val sys = system
+  implicit private val ec = system.dispatcher
 
   logger.warn(s"booting ${getClass.getSimpleName}")
 
@@ -158,16 +159,12 @@ class AuthServiceImpl(environment: Environment,
   }
 
   override def registerClient = ServiceCall { request =>
-    val ref = persistentEntityRegistry.refFor[ClientEntity](request.id.s)
-
-    ref.ask(CreateClient(request.id, request.name, request.secret))
+    persistentEntityRegistry.refFor[ClientEntity](request.id.s)
+      .ask(CreateClient(request.id, request.name, request.secret))
   }
 
   override def showClient(id: String) = ServiceCall { request =>
-//    val ref = persistentEntityRegistry.refFor[ClientEntity](id)
-//
-//    ref.ask(ShowClient)
-    val ref = persistentEntityRegistry.refFor[HelloEntity](id)
-    ref.ask(Hello(id, None))
+    persistentEntityRegistry.refFor[ClientEntity](id)
+      .ask(ShowClient)
   }
 }

@@ -6,8 +6,10 @@ package co.tjcelaya.smack.service.auth.impl.entity
 
 import akka.Done
 import co.tjcelaya.smack.service.auth.api.{Client, ClientId}
+import com.lightbend.lagom.scaladsl.api.transport
 import com.lightbend.lagom.scaladsl.persistence.PersistentEntity
 import com.lightbend.lagom.scaladsl.persistence.PersistentEntity.ReplyType
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import play.api.libs.json.{Format, Json}
 
 /**
@@ -22,7 +24,7 @@ import play.api.libs.json.{Format, Json}
   *
   * handlers run when the event is first created and when the entity is revived
   */
-class ClientEntity extends PersistentEntity {
+class ClientEntity extends PersistentEntity with LazyLogging {
 
   override type Command = ClientCommand[_]
   override type Event = ClientEvent
@@ -35,48 +37,50 @@ class ClientEntity extends PersistentEntity {
 
   /** behaviour is a function of current state to a set of actions */
   override def behavior: Behavior = {
+
+    // empty id -> "nonexistent" entity
     case Client(ClientId(""), _, _) =>
       Actions().onCommand[CreateClient, Done] {
-        // Command handler for the CreateClient command
         case (CreateClient(newId, disp_name, sec), ctx, state) =>
-          // In response to this command, we want to first persist it as a
-          // ClientCreated event
-          ctx.thenPersist(
-            ClientCreated(newId, disp_name, sec)
-          ) { _ =>
-            // Then once the event is successfully persisted, we respond with done.
+          ctx.thenPersist(ClientCreated(newId, disp_name, sec)) { _ =>
             ctx.reply(Done)
           }
-      } onEvent {
+      }.onEvent {
         case (ClientCreated(i, n, s), state) =>
-          // We simply update the current state to use the supplied data
+          // update the current state to use the supplied data
           Client(i, n, s)
-      }
-    case Client(ClientId(_), _, _) =>
-      Actions().onReadOnlyCommand[ShowClient.type, Client] {
-        // Command handler for the ShowClient command
+      }.onReadOnlyCommand[ShowClient.type, Client] {
         case (ShowClient, ctx, state) =>
-          // Reply with a message built from the current message, and the name of
-          // the person we're meant to say hello to.
-          ctx.reply(state)
+          // TODO: have separate exceptions so entities don't need to know about "transport"
+          ctx.commandFailed(transport.NotFound("client"))
+      }
 
-      }
-    case _ =>
-      def catchAll:PartialFunction[(ClientCommand[_], CommandContext[_], Client), Persist] = {
-        case (msg, ctx, state) =>
-          ctx.invalidCommand(s"Unexpected Command: $msg")
+    case Client(ClientId(_), _, _) =>
+      Actions().onCommand[CreateClient, Done] {
+        case (CreateClient(newId, disp_name, sec), ctx, state) =>
+          // TODO: have separate exceptions so entities don't need to know about "transport"
+          ctx.commandFailed(transport.PolicyViolation("client already exists"))
           ctx.done
+      }.onReadOnlyCommand[ShowClient.type, Client] {
+        case (ShowClient, ctx, state) =>
+          ctx.reply(state)
       }
-      println("unexpected?")
-      Actions()
-        .onCommand[ClientCommand[Done], Done](catchAll)
-        .onCommand[ClientCommand[Client], Client](catchAll)
+
+    // case _ =>
+    //   def catchAll: PartialFunction[(ClientCommand[_], CommandContext[_], Client), Persist] = {
+    //     case (msg, ctx, state) =>
+    //       ctx.invalidCommand(s"Unexpected Command: $msg")
+    //       ctx.done
+    //   }
+    //
+    //
+    //   Actions()
+    //     .onCommand[ClientCommand[Done], Done](catchAll)
+    //     .onCommand[ClientCommand[Client], Client](catchAll)
   }
 }
 
 // EVENTS //
-//        //
-//        //
 
 sealed trait ClientEvent
 
@@ -89,9 +93,6 @@ object ClientCreated {
 }
 
 // COMMANDS //
-//        //
-//        //
-
 
 sealed trait ClientCommand[R] extends ReplyType[R]
 

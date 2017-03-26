@@ -78,7 +78,6 @@ lazy val `common` = (project in file("common"))
       // TODO: find a way to depend on whatever version lagom depends?
       "com.typesafe.scala-logging" %% "scala-logging-api" % "2.1.2",
       "com.typesafe.scala-logging" %% "scala-logging-slf4j" % "2.1.2"
-      //"com.nulab-inc" %% "scala-oauth2-core" % "1.3.0",
 
       // list of unused lagom packages for reference
       // lagomScaladslClient,
@@ -97,7 +96,6 @@ lazy val `common` = (project in file("common"))
 
 lazy val `user-api` = (project in file("user-api"))
   .settings(
-    lagomCassandraKeyspace := "user",
     libraryDependencies ++= serviceApiDefaultDeps
   )
   .dependsOn(`common`)
@@ -116,8 +114,7 @@ lazy val `user-impl` = (project in file("user-impl"))
 
 lazy val `auth-api` = (project in file("auth-api"))
   .settings(
-    libraryDependencies ++= (serviceApiDefaultDeps ++ Seq(
-    ))
+    libraryDependencies ++= serviceApiDefaultDeps
   )
   .dependsOn(`common`)
 
@@ -129,35 +126,7 @@ lazy val `auth-impl` = (project in file("auth-impl"))
       "mysql" % "mysql-connector-java" % "6.0.5",
       lagomScaladslPersistenceJdbc,
       "com.lambdaworks" % "scrypt" % "1.4.0"
-      //, "com.typesafe.slick" %% "slick" % slickVersion
-      //, "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
-      //, "com.typesafe.slick" %% "slick-testkit" % slickVersion % "test"
-      //, "com.typesafe.slick" %% "slick-codegen" % slickVersion
     ))
-    //, authSlick <<= authSlickCodeGenTask // register manual sbt command
   )
   .settings(lagomForkedTestSettings: _*)
   .dependsOn(`auth-api`, `common`)
-
-// // // // // // // //
-// auth service codegen task
-// code generation task
-// // // // // // // //
-
-//lazy val authSlick = TaskKey[Seq[File]]("gen-tables")
-//lazy val authSlickCodeGenTask =
-//  (sourceManaged, dependencyClasspath in Compile, runner in Compile, streams) map {
-//    (dir, cp, r, s) =>
-//      val outputDir = (dir / "slick").getPath
-//      // place generated files in sbt's managed sources folder
-//      val url = "jdbc:mysql://127.0.0.1:33061/auth?autoReconnect=true&useSSL=false"
-//      // connection info for a pre-populated throw-away, in-memory db for this demo, which is freshly
-  // initialized on every run
-//      val jdbcDriver = "com.mysql.jdbc.Driver"
-//      val slickDriver = "slick.driver.MySQLDriver"
-//      val pkg = "auth-"
-//      toError(r.run("slick.codegen.SourceCodeGenerator", cp.files, Array(slickDriver, jdbcDriver, url, outputDir, pkg), s.log))
-//      val fname = outputDir + "/demo/Tables.scala"
-//      Seq(file(fname))
-//  }
-//
